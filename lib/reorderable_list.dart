@@ -10,64 +10,86 @@ class MyReorderableList extends StatefulWidget {
 
 class _ReorderableListViewExampleState extends State<MyReorderableList> {
   final List<Map<String, dynamic>> _items = [];  
-  late final Stream<QuerySnapshot> _itemsStream;
+  late final Stream<QuerySnapshot> snapshot;
 
   @override
   void initState() {
     super.initState();
-    _itemsStream = FirebaseFirestore.instance.collection('guilds/12345/queue').snapshots();
+    snapshot = FirebaseFirestore.instance.collection('guilds/12345/queue').snapshots();
   }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: _itemsStream,
+      stream: snapshot,
       builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
         if (snapshot.hasError) {
-          return Text('Something went wrong');
+          return const Text('Something went wrong');
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Text("Loading");
+          return const Text("Loading");
         }
 
         _items.clear();
-        snapshot.data!.docs.forEach((DocumentSnapshot document) {
+        for (var document in snapshot.data!.docs) {
           Map<String, dynamic> data = document.data()! as Map<String, dynamic>;
-          data['id'] = document.id;  // Ensure you have 'id' for Key value
+          data['id'] = document.id;
           _items.add(data);
-        });
+        }
 
-        return ReorderableListView(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-          children: <Widget>[
-            for (int index = 0; index < _items.length; index++)
-              ListTile(
-                key: ValueKey(_items[index]['id']),
-                tileColor: index.isOdd ? Colors.blue[700] : Colors.blue[800],
-                title: Text('Item ${_items[index]['song']} by ${_items[index]['artist']}'),
-                trailing: IconButton(
-                  icon: Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _deleteItem(_items[index]['id']),
+        return Scaffold(
+          body: ReorderableListView(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            children: <Widget>[
+              for (int index = 0; index < _items.length; index++)
+                ListTile(
+                  key: ValueKey(_items[index]['id']),
+                  tileColor: index.isOdd ? const Color.fromARGB(255, 127, 181, 227) : const Color.fromARGB(255, 38, 94, 157),
+                  title: Text('${index + 1}) ${_items[index]['song']}'),
+                  subtitle: Text('By: ${_items[index]['artist']}'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete, color: Color.fromARGB(255, 230, 61, 49)),
+                    onPressed: () => _deleteItem(_items[index]['id']),
+                  ),
+                  leading: Image.network(
+                    _items[index]['thumbnailURL'],
+                    loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                            : null,
+                        ),
+                      );
+                    },
+                    errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
+                      return const Text('Failed to load image');
+                    }
+                  ),
                 ),
-              ),
-          ],
-          onReorder: (int oldIndex, int newIndex) {
-            if (newIndex > oldIndex) {
-              newIndex -= 1;
-            }
-            final item = _items.removeAt(oldIndex);
-            _items.insert(newIndex, item);
-            updateFirestoreOrder();
-          },
+            ],
+            onReorder: (int oldIndex, int newIndex) {
+              if (newIndex > oldIndex) {
+                newIndex -= 1;
+              }
+              final item = _items.removeAt(oldIndex);
+              _items.insert(newIndex, item);
+              updateFirestoreOrder();
+            },
+          ),
         );
       },
     );
   }
 
+  // Deletes item from dummy guild
   void _deleteItem(String itemId) {
     FirebaseFirestore.instance.collection('guilds/12345/queue').doc(itemId).delete();
   }
 
+
+  // Updaets firestore order on item reorder
   void updateFirestoreOrder() {
     for (int i = 0; i < _items.length; i++) {
       FirebaseFirestore.instance.collection('guilds/12345/queue').doc(_items[i]['id']).update({'order': i});

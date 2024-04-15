@@ -31,6 +31,7 @@ class WallMusicApp extends StatelessWidget {
           centerTitle: true,
         ),
         body: const Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(child: MyReorderableList()),
             Expanded(child: YoutubeSearch()),

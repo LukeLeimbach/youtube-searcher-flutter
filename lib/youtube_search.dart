@@ -38,6 +38,9 @@ class _YoutubeSearchState extends State<YoutubeSearch> {
 
   Future<void> _searchYoutube(String query) async {
     try {
+      if (query.isEmpty) {
+
+      }
       var response = await http.get(Uri.parse('https://www.googleapis.com/youtube/v3/search?part=snippet&q=$query&type=video&key=AIzaSyCtiJxlw_gu-BJcFb_xT0mHaoM-GVsNPIU'));
       if (response.statusCode == 200) {
         var data = json.decode(response.body);
@@ -54,8 +57,7 @@ class _YoutubeSearchState extends State<YoutubeSearch> {
           debugPrint('No items found or items is not a list');
         }
       } else {
-        // If the server did not return a 200 OK response,
-        // then throw an exception.
+        // Throw exception if no response recieved
         throw Exception('Failed to load video list');
       }
     } catch (e) {
@@ -88,6 +90,7 @@ class _YoutubeSearchState extends State<YoutubeSearch> {
               var video = _results[index];
               return ListTile(
                 title: Text(video['snippet']['title']),
+                subtitle: Text(video['snippet']['channelTitle']),
                 onTap: () => _addToFirestore(video),
               );
             },
@@ -96,14 +99,15 @@ class _YoutubeSearchState extends State<YoutubeSearch> {
       ],
     );
   }
-
+   
   void _addToFirestore(dynamic video) {
+    // Using dummy guild id 12345
     var docRef = FirebaseFirestore.instance.collection('guilds/12345/queue').doc();
     docRef.set({
-      'artist': 'Unknown',
+      'artist': video['snippet']['channelTitle'],
       'order': _results.indexOf(video),
       'song': video['snippet']['title'],
-      'thumbnailURL': video['snippet']['thumbnails']['default']['url'],
+      'thumbnailURL': video['snippet']['thumbnails']['medium']['url'],
       'url': 'https://www.youtube.com/watch?v=${video['id']['videoId']}'
     });
   }
