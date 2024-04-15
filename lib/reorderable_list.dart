@@ -35,6 +35,7 @@ class _ReorderableListViewExampleState extends State<MyReorderableList> {
           Map<String, dynamic> data = document.data()! as Map<String, dynamic>;
           data['id'] = document.id;
           _items.add(data);
+          _items.sort((a, b) => a['order'] - b['order']);
         }
 
         return Scaffold(
@@ -45,28 +46,13 @@ class _ReorderableListViewExampleState extends State<MyReorderableList> {
                 ListTile(
                   key: ValueKey(_items[index]['id']),
                   tileColor: index.isOdd ? const Color.fromARGB(255, 127, 181, 227) : const Color.fromARGB(255, 38, 94, 157),
-                  title: Text('${index + 1}) ${_items[index]['song']}'),
+                  title: Text('${_items[index]['order']}) ${_items[index]['song']}'),
                   subtitle: Text('By: ${_items[index]['artist']}'),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete, color: Color.fromARGB(255, 230, 61, 49)),
                     onPressed: () => _deleteItem(_items[index]['id']),
                   ),
-                  leading: Image.network(
-                    _items[index]['thumbnailURL'],
-                    loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Center(
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                            : null,
-                        ),
-                      );
-                    },
-                    errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
-                      return const Text('Failed to load image');
-                    }
-                  ),
+                  leading: Image.network(_items[index]['thumbnailURL']),
                 ),
             ],
             onReorder: (int oldIndex, int newIndex) {

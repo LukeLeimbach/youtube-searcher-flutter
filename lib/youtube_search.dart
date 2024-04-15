@@ -38,12 +38,18 @@ class _YoutubeSearchState extends State<YoutubeSearch> {
 
   Future<void> _searchYoutube(String query) async {
     try {
+      // Reset search if query is empty
       if (query.isEmpty) {
-
+        setState(() {
+          _results = [];
+        });
+        return;
       }
-      var response = await http.get(Uri.parse('https://www.googleapis.com/youtube/v3/search?part=snippet&q=$query&type=video&key=AIzaSyCtiJxlw_gu-BJcFb_xT0mHaoM-GVsNPIU'));
+
+      // Query youtube info
+      final response = await http.get(Uri.parse('https://www.googleapis.com/youtube/v3/search?part=snippet&q=$query&type=video&key=AIzaSyCtiJxlw_gu-BJcFb_xT0mHaoM-GVsNPIU'));
       if (response.statusCode == 200) {
-        var data = json.decode(response.body);
+        final data = json.decode(response.body);
         // Check if the 'items' field exists and is a list
         if (data['items'] != null && data['items'] is List) {
           setState(() {
@@ -60,12 +66,12 @@ class _YoutubeSearchState extends State<YoutubeSearch> {
         // Throw exception if no response recieved
         throw Exception('Failed to load video list');
       }
-    } catch (e) {
+    } catch (err) {
       // Handle exceptions by clearing results and printing error
       setState(() {
         _results = [];
       });
-      debugPrint('Error searching YouTube: $e');
+      debugPrint('Error searching YouTube: $err');
     }
   }
 
@@ -100,15 +106,23 @@ class _YoutubeSearchState extends State<YoutubeSearch> {
     );
   }
    
-  void _addToFirestore(dynamic video) {
-    // Using dummy guild id 12345
-    var docRef = FirebaseFirestore.instance.collection('guilds/12345/queue').doc();
+  void _addToFirestore(dynamic video) async {
+    var queueCollection = FirebaseFirestore.instance.collection('guilds/12345/queue');
+    
+    // Get the current number of documents in the collection to determine the new order
+    var querySnapshot = await queueCollection.get();
+    int newOrder = querySnapshot.docs.length;
+
+    var docRef = queueCollection.doc();
+
+    // Set the new document data
     docRef.set({
       'artist': video['snippet']['channelTitle'],
-      'order': _results.indexOf(video),
+      'order': newOrder,
       'song': video['snippet']['title'],
       'thumbnailURL': video['snippet']['thumbnails']['medium']['url'],
       'url': 'https://www.youtube.com/watch?v=${video['id']['videoId']}'
     });
+    // print('Order of ${video['snippet']['title']} set to $newOrder');
   }
 }
